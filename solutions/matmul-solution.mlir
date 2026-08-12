@@ -40,9 +40,12 @@ cuda_tile.module @matmul {
         : partition_view<tile=(16x16), tensor_view<256x256xf32, strides=[256,1]>>
 
     %pid_m, %pid_n, %pid_z = get_tile_block_id : tile<i32>
-    %a_tiles_m, %a_tiles_k = get_index_space_shape %a_view
+    %m_dim_size, %k_dim_size = get_index_space_shape %a_view
         : partition_view<tile=(16x16), tensor_view<256x256xf16, strides=[256,1]>>
           -> tile<i32>
+    %c0 = constant <i32: 0> : tile<i32>
+    %c1 = constant <i32: 1> : tile<i32>
+    %zero = constant <f32: 0.0> : tile<16x16xf32>
 
     // Then, we perform the main loop over the tile column and
     // tile row to consider in the covered tile.

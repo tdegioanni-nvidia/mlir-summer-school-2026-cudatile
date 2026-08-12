@@ -69,6 +69,6 @@ fi
 chmod -R a+rX "$PROJECT_DIR"
 chmod a+rx "$PROJECT_DIR/cuda-tile-translate"
 
-sudo chown -R root "$PROJECT_DIR"
+sudo chown -R root:root "$PROJECT_DIR"
 
 echo "CUDA Tile project setup complete: $PROJECT_DIR"
