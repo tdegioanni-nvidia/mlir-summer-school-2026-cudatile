@@ -6,7 +6,8 @@ from pathlib import Path
 import torch
 
 example_dir = Path(__file__).resolve().parent
-runtime_dir = example_dir.parent
+tests_dir = example_dir.parent
+runtime_dir = tests_dir.parent
 sys.path.insert(0, str(runtime_dir))
 
 from cuda_tile_runner import launch
