@@ -74,6 +74,7 @@ Iterates over a half-open integer range while carrying the accumulator between i
 
 ```mlir
 %a_tile, %token = load_view_tko weak %a_view[%pid_m, %k]
+    token = %prev_token
     : partition_view<tile=(16x16), tensor_view<256x256xf16, strides=[256,1]>>,
       tile<i32> -> tile<16x16xf16>, token
 ```
@@ -84,6 +85,7 @@ Loads one indexed tile from a view and returns a memory-ordering token.
 
 ```mlir
 %token = store_view_tko weak %result, %c_view[%pid_m, %pid_n]
+    token = %prev_token
     : tile<16x16xf32>,
       partition_view<tile=(16x16), tensor_view<256x256xf32, strides=[256,1]>>,
       tile<i32> -> token
