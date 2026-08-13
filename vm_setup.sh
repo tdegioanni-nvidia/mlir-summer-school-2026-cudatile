@@ -28,6 +28,58 @@ run_as_root() {
     fi
 }
 
+# Ensure NVIDIA's Ubuntu 22.04 repository and matching kernel headers exist.
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+ca-certificates \
+wget \
+"linux-headers-$(uname -r)"
+
+wget -q \
+https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
+-O /tmp/cuda-keyring_1.1-1_all.deb
+
+sudo dpkg -i /tmp/cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+
+# Brev holds its NVIDIA packages, preventing driver upgrades.
+mapfile -t held_packages < <(
+apt-mark showhold |
+    grep -E '^(cuda|libcuda|libnvidia|nvidia)' || true
+)
+
+if ((${#held_packages[@]})); then
+sudo apt-mark unhold "${held_packages[@]}"
+fi
+
+# CUDA 13.3 requires driver 610+. Keep the driver on the 610 branch.
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+nvidia-driver-pinning-610
+
+# Explicitly remove Brev's old versioned 565 driver packages. This is needed
+# because packages such as libnvidia-fbc1-565 conflict with the new names.
+remove_args=()
+
+while IFS= read -r package; do
+[[ -n "$package" ]] && remove_args+=("${package}-")
+done < <(
+dpkg --get-selections |
+    awk '
+    $2 == "install" &&
+    $1 ~ /^(cuda-drivers|libnvidia|nvidia|xserver-xorg-video-nvidia).*565/ {
+        print $1
+    }
+    '
+)
+
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+"${remove_args[@]}" \
+nvidia-open \
+cuda-toolkit-13-3
+
+# A reboot is required to replace the loaded 565 kernel module with 610.
+echo "CUDA 13.3 installed. Reboot required."
+
 echo "Installing Git, Git LFS, and the system Python tools..."
 run_as_root apt-get update
 run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -38,6 +90,9 @@ run_as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-r
     python3-pip \
     python3-venv \
     python-is-python3
+
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+pip3 install pytest cuda-python==13.3.1
 
 # Configure the LFS clean/smudge filters for every user before cloning.
 run_as_root git lfs install --system --skip-repo
@@ -72,3 +127,5 @@ chmod a+rx "$PROJECT_DIR/cuda-tile-translate"
 sudo chown -R root:root "$PROJECT_DIR"
 
 echo "CUDA Tile project setup complete: $PROJECT_DIR"
+
+sudo reboot
